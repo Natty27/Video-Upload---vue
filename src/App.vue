@@ -172,23 +172,26 @@ const uploadVideos = async () => {
     const formData = new FormData();
     formData.append("video", file);
 
-   try {
-  const response = await axios.post("/upload", formData, {
-    onUploadProgress: (progressEvent) => {
-      const percent = Math.round(
-        (progressEvent.loaded * 100) / progressEvent.total
-      );
-      progressItem.progress = percent;
-    },
-  });
+    try {
+      const response = await axios.post("/upload", formData, {
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          progressItem.progress = percent;
+        },
+      });
 
-  uploadedVideos.value.push(response.data);
-  progressItem.progress = 100;
-} catch (error) {
-  console.error("Upload failed:", error);
-  alert(`Upload failed for ${file.name}: ${error.message || 'Network error'}`);
-  progressItem.progress = 0;
-}
+      uploadedVideos.value.push(response.data);
+      progressItem.progress = 100;
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert(
+        `Upload failed for ${file.name}: ${error.message || "Network error"}`
+      );
+      progressItem.progress = 0;
+    }
+  } // ✅ CLOSES for-loop
 
   uploading.value = false;
   hasJustUploaded.value = true;
