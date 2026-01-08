@@ -3,16 +3,16 @@
     <!-- ===== HERO ALBUM CARD ===== -->
     <div class="album-card">
       <img src="./assets/weeding.jpeg" alt="Wedding" class="album-image" />
-
       <div class="album-overlay">
-        <h1 class="names">The Smiths</h1>
-        <p class="date">June 18, 2025</p>
+        <h1 class="names">Bruk & Tsion</h1>
+        <p class="date">January 10, 2026</p>
       </div>
     </div>
 
     <!-- ===== ACTION BUTTONS ===== -->
     <div class="actions">
       <label for="fileInput" class="btn primary"> ⬆ Upload Media </label>
+
       <input
         id="fileInput"
         type="file"
@@ -25,58 +25,21 @@
       <button class="btn secondary" @click="viewAlbum">🖼 View Album</button>
     </div>
 
-    <!-- ===== PREVIEWS ===== -->
-    <transition name="fade">
-      <div v-if="previews.length && !hasJustUploaded" class="previews">
-        <div v-for="(preview, i) in previews" :key="i" class="preview-item">
-          <video :src="preview.url" controls></video>
-          <p>{{ preview.name }}</p>
-        </div>
+    <!-- ===== UPLOAD BUTTON ===== -->
+    <div v-if="selectedFiles.length" class="upload-box">
+      <button class="btn upload" :disabled="uploading" @click="uploadVideos">
+        <span v-if="!uploading">
+          ✨ Upload {{ selectedFiles.length }} Video{{
+            selectedFiles.length > 1 ? "s" : ""
+          }}
+        </span>
 
-        <button class="btn upload" :disabled="uploading" @click="uploadVideos">
-          <span v-if="!uploading">
-            ✨ Upload {{ selectedFiles.length }} Video{{
-              selectedFiles.length > 1 ? "s" : ""
-            }}
-          </span>
-          <span v-else>Uploading…</span>
-        </button>
-      </div>
-    </transition>
-
-    <!-- ===== PROGRESS ===== -->
-    <div v-if="uploadProgress.length" class="progress-list">
-      <div v-for="item in uploadProgress" :key="item.id">
-        <div class="progress-info">
-          <span>{{ item.name }}</span>
-          <span>{{ item.progress }}%</span>
-        </div>
-        <div class="bar">
-          <div class="fill" :style="{ width: item.progress + '%' }"></div>
-        </div>
-      </div>
+        <span v-else class="spinner-wrap">
+          <span class="spinner"></span>
+          Uploading…
+        </span>
+      </button>
     </div>
-
-    <!-- ===== SUCCESS ===== -->
-    <transition name="slide-up">
-      <div v-if="uploadedVideos.length" class="success">
-        <h3>🎉 Thank you!</h3>
-        <p>{{ uploadedVideos.length }} video(s) uploaded successfully.</p>
-
-        <div class="uploaded-grid">
-          <div
-            v-for="video in uploadedVideos"
-            :key="video.filename"
-            class="uploaded-item"
-          >
-            <video :src="video.url" controls muted loop></video>
-            <a :href="video.url" target="_blank"> Watch full → </a>
-          </div>
-        </div>
-
-        <label for="fileInput" class="btn upload-more"> ➕ Upload More </label>
-      </div>
-    </transition>
   </div>
 </template>
 
@@ -84,75 +47,52 @@
 import { ref } from "vue";
 import axios from "axios";
 
+/* ================= AXIOS ================= */
 const api = axios.create({
-  baseURL: "http://196.190.251.44:9000",
+  baseURL: "http://localhost:9000",
+  timeout: 0, // allow large video uploads
 });
 
+/* ================= STATE ================= */
 const selectedFiles = ref([]);
-const previews = ref([]);
 const uploading = ref(false);
-const uploadProgress = ref([]);
-const uploadedVideos = ref([]);
-const hasJustUploaded = ref(false);
 
-/* ===== FILE SELECT ===== */
+/* ================= FILE SELECT ================= */
 const onFilesChange = (e) => {
   const files = Array.from(e.target.files);
   if (!files.length) return;
-
   selectedFiles.value = files;
-  previews.value = files.map((f) => ({
-    name: f.name,
-    url: URL.createObjectURL(f),
-  }));
-
-  hasJustUploaded.value = false;
-  uploadProgress.value = [];
 };
 
-/* ===== UPLOAD ===== */
+/* ================= UPLOAD (FAST) ================= */
 const uploadVideos = async () => {
   uploading.value = true;
 
-  uploadProgress.value = selectedFiles.value.map((f, i) => ({
-    id: Date.now() + i,
-    name: f.name,
-    progress: 0,
-  }));
+  try {
+    const uploads = selectedFiles.value.map((file) => {
+      const formData = new FormData();
+      formData.append("video", file);
 
-  for (let i = 0; i < selectedFiles.value.length; i++) {
-    const file = selectedFiles.value[i];
-    const progressItem = uploadProgress.value[i];
-
-    const formData = new FormData();
-    formData.append("video", file);
-
-    try {
-      const res = await api.post("/upload", formData, {
+      return api.post("/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-        onUploadProgress: (e) => {
-          if (e.total) {
-            progressItem.progress = Math.round((e.loaded * 100) / e.total);
-          }
-        },
       });
+    });
 
-      uploadedVideos.value.push(res.data);
-      progressItem.progress = 100;
-    } catch (err) {
-      progressItem.progress = 0;
-      alert(`Failed to upload ${file.name}`);
-    }
+    await Promise.all(uploads);
+
+    alert("🎉 Upload completed successfully!");
+    selectedFiles.value = [];
+  } catch (err) {
+    console.error(err);
+    alert("❌ Upload failed. Please try again.");
+  } finally {
+    uploading.value = false;
   }
-
-  uploading.value = false;
-  hasJustUploaded.value = true;
-  previews.value = [];
 };
 
-/* ===== VIEW ALBUM ===== */
+/* ================= VIEW ALBUM ================= */
 const viewAlbum = () => {
   alert("Navigate to album page");
 };
@@ -167,6 +107,7 @@ const viewAlbum = () => {
 
 /* Album card */
 .album-card {
+  position: relative;
   border-radius: 22px;
   overflow: hidden;
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
@@ -214,64 +155,34 @@ const viewAlbum = () => {
 
 .primary,
 .secondary,
-.upload,
-.upload-more {
-  background: #8fa98c;
+.upload {
+  background: #c29607;
   color: white;
 }
 
-.previews {
+.upload-box {
   margin-top: 30px;
 }
 
-.preview-item video {
-  width: 100%;
-  border-radius: 12px;
+/* Spinner */
+.spinner-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.progress-list {
-  margin-top: 20px;
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-top: 3px solid white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
-.bar {
-  height: 10px;
-  background: #ddd;
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.fill {
-  height: 100%;
-  background: #8fa98c;
-}
-
-.success {
-  margin-top: 40px;
-  padding: 20px;
-  background: white;
-  border-radius: 16px;
-}
-
-.uploaded-grid video {
-  width: 100%;
-  border-radius: 12px;
-}
-
-/* Animations */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.4s;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.slide-up-enter-active {
-  transition: all 0.5s ease;
-}
-.slide-up-enter-from {
-  opacity: 0;
-  transform: translateY(30px);
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
