@@ -49,8 +49,8 @@ import axios from "axios";
 
 /* ================= AXIOS ================= */
 const api = axios.create({
-  baseURL: "http://localhost:9000",
-  timeout: 0, // allow large video uploads
+  baseURL: "", // same origin (http://196.190.251.44:5000)
+  timeout: 0,
 });
 
 /* ================= STATE ================= */
